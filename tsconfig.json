@@ -9,6 +9,7 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
+    "resolveJsonModule": false,
     //"types": ["node"],
     // For nodejs:
     // "lib": ["esnext"],

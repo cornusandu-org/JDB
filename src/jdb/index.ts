@@ -2,7 +2,7 @@ import logger from './logger.js';
 import fs, { readFileSync } from "fs";
 import path from "path";
 import { getLog, codes } from './getlog.js';
-import { JDB_DB_INVALIDCONTROLFLOW, JDB_DB_MKTABLE_EXISTS, JDB_DB_MKTABLE_F1, JDB_DBINIT_INVALIDCONTROLFLOW, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
+import { JDB_DB_INVALIDCONTROLFLOW, JDB_DB_MKTABLE_EXISTS, JDB_DB_MKTABLE_F1, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
 import { AsyncLock } from './lock.js';
 import { encode, decode } from "@msgpack/msgpack";
 import { EventEmitter } from "events";
@@ -19,15 +19,17 @@ function onceAsync(emitter: EventEmitter, event: string): Promise<any[]> {
 export class DatabaseManager {
     path: string;
     _promise_queue: Array<Promise<any>>;
+    errors: Array<Error> = [];
     access_lock: AsyncLock;
     #data: DBDataType;
+    #locks: Map<string, AsyncLock>;
     
     constructor(dbname: string) {
         this._promise_queue = [];
         this.path = "";
         this.access_lock = new AsyncLock();
         this.#data = {tables:[]};  // placeholder value until fully initialised
-        this.#data;  // silence linter errors
+        this.#locks = new Map();
 
         this._promise_queue.push(new Promise((resolve: (value: any) => void, reject: (reason?: any) => void) => {
             reject;
@@ -50,7 +52,6 @@ export class DatabaseManager {
                 }
                 dbm_constructed = true;
                 resolve(null);
-                return;
             } catch (e) {
                 dbm_constructed = true;
                 logger.error(e, getLog(codes.JDB_DBINIT_INVPATH));
@@ -59,11 +60,13 @@ export class DatabaseManager {
                 if (!fs.existsSync(this.path)) {
                     fs.writeFileSync(this.path, "");
                 }
+                this.errors.push(new JDB_DBINIT_INVPATH(getLog(codes.JDB_DBINIT_INVPATH)));
                 resolve(new JDB_DBINIT_INVPATH(getLog(codes.JDB_DBINIT_INVPATH)));
-                return;
             }
-            logger.error(getLog(codes.JDB_DBINIT_INVALIDCONTROLFLOW));
-            throw new JDB_DBINIT_INVALIDCONTROLFLOW("error in DatabaseManager:constructor\n" + getLog(codes.JDB_DBINIT_INVALIDCONTROLFLOW));
+            for (const table of this.#data.tables) {
+                this.#locks.set(table.name as string, new AsyncLock());
+            }
+            return;
         }));
     }
 
@@ -86,7 +89,20 @@ export class DatabaseManager {
         })(this);
     }
 
-    async mktable(name: string) {
+    async table_exists(name: string): Promise<boolean> {
+        await this.access_lock.acquire();
+
+        for (const t of this.#data.tables) {
+            if ((t as Record<string, any>).name === name) {
+                await this.access_lock.release();
+                return true;
+            }
+        }
+        await this.access_lock.release();
+        return false;
+    }
+
+    async mktable(name: string) {  // TODO: Add `fields` parameter
         await this.access_lock.acquire();
         this._promise_queue.push(new Promise((resolve: ResolveFn<[boolean, Error | null]>, ..._) => {
             const bus = new EventEmitter();
@@ -98,6 +114,8 @@ export class DatabaseManager {
             try {
                 for (const t of this.#data.tables) {
                     if ((t as Record<string, any>).name === name) {
+                        // TODO: Optimize
+                        this.errors.push(new JDB_DB_MKTABLE_EXISTS(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name)));
                         logger.error(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name));
                         resolve([true, new JDB_DB_MKTABLE_EXISTS(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name))]);
                         return;
@@ -105,12 +123,20 @@ export class DatabaseManager {
                 }
                 this.#data.tables.push({
                     name: name,
-                    index: new Map(),
+                    index: new Map<string, IndexType>(Object.entries({
+                        "id": {
+                            type: 'int',
+                            entries: {}
+                        }
+                    })),
                     records: new Map()
                 });
                 logger.info(`Added new table: ${name}`);
+                this.#locks.set(name, new AsyncLock());
                 resolve([false, null]);
             } catch (err) {
+                // TODO: Optimize
+                this.errors.push(new JDB_DB_MKTABLE_F1(getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name)));
                 logger.error(err, getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name));
                 resolve([true, new JDB_DB_MKTABLE_F1(getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name))]);
             }
@@ -120,7 +146,13 @@ export class DatabaseManager {
         }));
     }
 
+    async transaction(tableName: string) {
+        await this.#locks.get(tableName)?.acquire();
+        return;  // TODO: Implement
+    }
+
     async #sync(): Promise<[boolean, Error | null]> {
+        // TODO: Use async functions here
         logger.info(`Saving db ${this.path} to disk`);
         await this.access_lock.acquire();
         const data = encode(this.#data);

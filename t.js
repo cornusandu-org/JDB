@@ -9,3 +9,9 @@ if (!await db.table_exists("test")) {
     await db.mktable("test");
     if ((v = await db)[0]) throw v[1];
 }
+
+const tx = await db.transaction("test");
+tx.commit();
+tx.commit();
+
+await db.flushToDiskNow();

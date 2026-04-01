@@ -2,10 +2,11 @@ import logger from './logger.js';
 import fs, { readFileSync } from "fs";
 import path from "path";
 import { getLog, codes } from './getlog.js';
-import { JDB_DB_INVALIDCONTROLFLOW, JDB_DB_MKTABLE_EXISTS, JDB_DB_MKTABLE_F1, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
+import { JDB_DB_INTERNAL_MKTRANSACTION_MISSINGDATA, JDB_DB_INVALIDCONTROLFLOW, JDB_DB_MKTABLE_EXISTS, JDB_DB_MKTABLE_F1, JDB_DB_MKTRANSACTION_NOENTRY, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
 import { AsyncLock } from './lock.js';
 import { encode, decode } from "@msgpack/msgpack";
 import { EventEmitter } from "events";
+import { Transaction } from './transaction.js';
 
 let dbm_constructed: boolean = false;
 
@@ -146,9 +147,29 @@ export class DatabaseManager {
         }));
     }
 
-    async transaction(tableName: string) {
-        await this.#locks.get(tableName)?.acquire();
-        return;  // TODO: Implement
+    async transaction(tableName: string): Promise<Transaction | JDB_DB_MKTRANSACTION_NOENTRY> {
+        if (!this.table_exists(tableName)) {
+            const err =  new JDB_DB_MKTRANSACTION_NOENTRY(getLog(codes.JDB_DB_MKTRANSACTION_NOENTRY));
+            logger.error(err, "An unexpected error occured in DatabaseManager:transaction. Are you sure the entered table name does not include any typos?");
+            return err;
+        }
+        let tableData = null;
+        for (const table of this.#data.tables) {
+            if (table.name === tableName) {
+                tableData = table;
+            }
+        }
+        if (tableData === null) {
+            const err = new JDB_DB_INTERNAL_MKTRANSACTION_MISSINGDATA(getLog(codes.JDB_DB_INTERNAL_MKTRANSACTION_MISSINGDATA));
+            logger.error(err, "This is most likely not an issue on your side. If you're seeing this, please report it.");
+            throw err;
+        }
+        return new Transaction(
+            structuredClone(tableData),
+            this,
+            this.#locks.get(tableName) as AsyncLock,
+            () => this.#data
+        )
     }
 
     async #sync(): Promise<[boolean, Error | null]> {
@@ -163,5 +184,9 @@ export class DatabaseManager {
 
     async flushToDisk() {
         this._promise_queue.push(this.#sync());
+    }
+
+    async flushToDiskNow(): Promise<[boolean, Error | null]> {
+        return await this.#sync();
     }
 }

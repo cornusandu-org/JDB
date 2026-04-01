@@ -1,39 +1,25 @@
 import logger from './logger.js';
-import fs from "fs";
+import fs, { readFileSync } from "fs";
 import path from "path";
 import { getLog, codes } from './getlog.js';
 import { JDB_DB_INVALIDCONTROLFLOW, JDB_DBINIT_INVALIDCONTROLFLOW, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
 import { AsyncLock } from './lock.js';
+import { decode } from "@msgpack/msgpack";
 
 let dbm_constructed: boolean = false;
-
-const uninitialised = Symbol("uninitialised");
-type MaybeUninit<T> = T | typeof uninitialised;
-
-let _: MaybeUninit<number> = 2; _;
 
 export class DatabaseManager {
     path: string;
     _promise_queue: Array<Promise<any>>;
     access_lock: AsyncLock;
-    #data?: [
-        tables: Array<[
-            name: string,
-            records: Map<string, any>
-        ]>
-    ];
+    #data: DBDataType;
     
     constructor(dbname: string) {
-        this.#data;  // unused variable
-
-        if (dbm_constructed === false) {
-            logger.info("Thank you for using JDB! Please remember that JDB is licensed under AGPL 3.19, and any code using it has to use the same license.")
-            dbm_constructed = true;
-        }
-
         this._promise_queue = [];
         this.path = "";
         this.access_lock = new AsyncLock();
+        this.#data = {tables:[]};  // placeholder value until fully initialised
+        this.#data;  // silence linter errors
 
         this._promise_queue.push(new Promise((resolve: (value: any) => void, reject: (reason?: any) => void) => {
             reject;
@@ -41,11 +27,24 @@ export class DatabaseManager {
                 this.path = path.join("private", "assets", `${dbname}.db`);;
                 fs.mkdirSync("./private/assets/", { recursive: true });
                 if (!fs.existsSync(this.path)) {
+                    if (!dbm_constructed) {logger.info("Thank you for using JDB! Please remember that JDB is licensed under AGPL 3.19, and any code using it has to use the same license.")};
                     fs.writeFileSync(this.path, "");
+                    this.#data = {
+                        tables: []
+                    } as DBDataType;
+                } else {
+                    const buff = readFileSync(this.path);
+                    if (buff.length === 0) {
+                        this.#data = { tables: [] };
+                    } else {
+                        this.#data = decode(buff) as DBDataType;
+                    }
                 }
+                dbm_constructed = true;
                 resolve(null);
                 return;
             } catch (e) {
+                dbm_constructed = true;
                 logger.error(e, getLog(codes.JDB_DBINIT_INVPATH));
                 this.path = './ERROR/ERRORVALUE';
                 fs.mkdirSync("./ERROR", { recursive: true });

@@ -1,5 +1,7 @@
 {
     "JDB_DBINIT_INVPATH": "An unexpected error occurred! Please make sure your database name does not include any slashes or backslashes!",
     "JDB_DBINIT_INVALIDCONTROLFLOW": "uhh this wasn't supposed to happen (err 173.1)",
-    "JDB_DB_INVALIDCONTROLFLOW":     "uhh this wasn't supposed to happen (err 173.2)"
+    "JDB_DB_INVALIDCONTROLFLOW":     "uhh this wasn't supposed to happen (err 173.2)",
+    "JDB_INTERNAL_B64_WRONGINPUTSIZE1": "Recieved %byt% bytes instead of 32 bytes for base64 computation (err 174.1)",
+    "JDB_INTERNAL_B64_WRONGINPUTSIZE2": "Recieved %byt% bytes instead of 32 bytes for base64 computation (err 174.2)"
 }

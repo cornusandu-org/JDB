@@ -1,3 +1,4 @@
 ERROR/
 node_modules/
 dist/
+private/

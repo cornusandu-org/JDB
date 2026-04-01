@@ -2,11 +2,19 @@ import logger from './logger.js';
 import fs, { readFileSync } from "fs";
 import path from "path";
 import { getLog, codes } from './getlog.js';
-import { JDB_DB_INVALIDCONTROLFLOW, JDB_DBINIT_INVALIDCONTROLFLOW, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
+import { JDB_DB_INVALIDCONTROLFLOW, JDB_DB_MKTABLE_EXISTS, JDB_DB_MKTABLE_F1, JDB_DBINIT_INVALIDCONTROLFLOW, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
 import { AsyncLock } from './lock.js';
-import { decode } from "@msgpack/msgpack";
+import { encode, decode } from "@msgpack/msgpack";
+import { EventEmitter } from "events";
 
 let dbm_constructed: boolean = false;
+
+function onceAsync(emitter: EventEmitter, event: string): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+        emitter.once(event, (...args) => resolve(args));
+        emitter.once("error", reject);
+    });
+}
 
 export class DatabaseManager {
     path: string;
@@ -76,5 +84,52 @@ export class DatabaseManager {
             logger.error(getLog(codes.JDB_DB_INVALIDCONTROLFLOW));
             throw new JDB_DB_INVALIDCONTROLFLOW("error in DatabaseManager:then\n" + getLog(codes.JDB_DB_INVALIDCONTROLFLOW));
         })(this);
+    }
+
+    async mktable(name: string) {
+        await this.access_lock.acquire();
+        this._promise_queue.push(new Promise((resolve: ResolveFn<[boolean, Error | null]>, ..._) => {
+            const bus = new EventEmitter();
+            const wait = async () => {
+                await onceAsync(bus, "done");
+                return await this.#sync();
+            };
+            this._promise_queue.push(wait());
+            try {
+                for (const t of this.#data.tables) {
+                    if ((t as Record<string, any>).name === name) {
+                        logger.error(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name));
+                        resolve([true, new JDB_DB_MKTABLE_EXISTS(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name))]);
+                        return;
+                    }
+                }
+                this.#data.tables.push({
+                    name: name,
+                    index: new Map(),
+                    records: new Map()
+                });
+                logger.info(`Added new table: ${name}`);
+                resolve([false, null]);
+            } catch (err) {
+                logger.error(err, getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name));
+                resolve([true, new JDB_DB_MKTABLE_F1(getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name))]);
+            }
+            bus.emit("done");
+            this.access_lock.release();
+            return;
+        }));
+    }
+
+    async #sync(): Promise<[boolean, Error | null]> {
+        logger.info(`Saving db ${this.path} to disk`);
+        await this.access_lock.acquire();
+        const data = encode(this.#data);
+        fs.writeFileSync(this.path, data);
+        this.access_lock.release();
+        return [false, null];  // TODO: Add error handling
+    }
+
+    async flushToDisk() {
+        this._promise_queue.push(this.#sync());
     }
 }

@@ -1,0 +1,17 @@
+{
+    "JDB_DBINIT_INVPATH": "An unexpected error occurred! Please make sure your database name does not include any slashes or backslashes!",
+    "JDB_DBINIT_INVALIDCONTROLFLOW": "uhh this wasn't supposed to happen (err 173.1)",
+    "JDB_DB_INVALIDCONTROLFLOW":     "uhh this wasn't supposed to happen (err 173.2)",
+    "JDB_INTERNAL_B64_WRONGINPUTSIZE1": "Recieved %byt% bytes instead of 32 bytes for base64 computation (err 174.1)",
+    "JDB_INTERNAL_B64_WRONGINPUTSIZE2": "Recieved %byt% bytes instead of 32 bytes for base64 computation (err 174.2)",
+    "JDB_DB_MKTABLE_F1": "Failed to create table: %table% (unknown error) (err 172.1); next entry related",
+    "JDB_DB_MKTABLE_EXISTS": "Failed to create table: %table% (table already exists) (err 172.2)",
+    "JDB_DB_MKTRANSACTION_NOENTRY": "Failed to start transaction: no such table %table% (err 170.1)",
+    "JDB_DB_INTERNAL_MKTRANSACTION_MISSINGDATA": "INTERNAL ERROR: Failed to create transaction for %table%: failed to retrieve table (?)",
+    "JDB_TRANSACTION_INTERNAL_FAILEDTOCOMMIT_NOENTRY": "INTERNAL ERROR: Failed to commit transaction for table %table%: failed to find table. Please check whether you are manually accessing database state to remove tables. If not, please report this issue.",
+    "JDB_TRANSACTION_RECOMMIT0": "Attempted to recommit the same transaction (disabled due to possible race conditions).",
+    "JDB_TRANSACTION_CANCELTOOLATE0": "Attempted to cancel an already-committed transaction (disabled due to possible state corruption).",
+    "JDB_TRANSACTION_COMMITTOOLATE0": "Attempted to commit an already-canceled transaction (disabled due to possible race conditions).",
+    "JDB_TRANSACTION_RECANCEL": "Cancelling an already-canceled transaction for table %table%. Are you sure this is intentional?",
+    "JDB_DB_INTERNAL_SYNCTODISK_UNKNOWNFAILURE0": "An unexpected error occured while saving database `%db%` to disk (error logged)."
+}

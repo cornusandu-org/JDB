@@ -1,3 +1,4 @@
+import type { isGeneratorFunction } from "util/types";
 import { JDB_TRANSACTION_CANCELTOOLATE, JDB_TRANSACTION_COMMITTOOLATE, JDB_TRANSACTION_INTERNAL_FAILEDTOCOMMIT_NOENTRY, JDB_TRANSACTION_RECANCEL, JDB_TRANSACTION_RECOMMIT } from "./exceptions.js";
 import { codes, getLog } from "./getlog.js";
 import type { DatabaseManager } from "./index.js";
@@ -82,5 +83,10 @@ export class Transaction {
         }
         this.status = TransactionStatus.Canceled as BigInt;
         this.#lock.release();
+    }
+
+    // TODO: Define types
+    async insert(value: unknown): Promise<void> {
+        // TODO: Implement
     }
 }

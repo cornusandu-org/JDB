@@ -2,3 +2,4 @@ ERROR/
 node_modules/
 dist/
 private/
+dist-artifacts/

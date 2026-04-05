@@ -7,7 +7,6 @@ import { AsyncLock } from './lock.js';
 import { encode, decode } from "@msgpack/msgpack";
 import { EventEmitter } from "events";
 import { Transaction } from './transaction.js';
-import { get } from 'http';
 
 let dbm_constructed: boolean = false;
 
@@ -192,6 +191,7 @@ export class DatabaseManager {
             logger.error(e, msg);
             const err = new JDB_DB_INTERNAL_SYNCTODISK_UNKNOWNFAILURE0(msg);
             err.cause = e;
+            this.access_lock.release();
             throw err;
         }
         this.access_lock.release();

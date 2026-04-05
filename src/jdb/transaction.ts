@@ -15,6 +15,8 @@ export class Transaction {
     data: {
         name: string,
         index: Map<string, IndexType>,
+        fields: Array<string>,
+        strictfields: boolean,
         records: Map<Hash256Type, Map<string, unknown>>
     };
     #dbHook: DatabaseManager;
@@ -22,17 +24,22 @@ export class Transaction {
     getData: () => DBDataType;
     status: BigInt;
 
-    constructor(data: {name: string,
-                       index: Map<string, IndexType>,
-                       records: Map<Hash256Type, Map<string, unknown>>
-                       }, dbHook: DatabaseManager, lock: AsyncLock, getData: () => DBDataType) {
+    constructor(data: {
+                    name: string,
+                    index: Map<string, IndexType>,
+                    fields: Array<string>,
+                    strictfields: boolean,
+                    records: Map<Hash256Type, Map<string, unknown>>
+                },
+                dbHook: DatabaseManager, lock: AsyncLock, getData: () => DBDataType) {
+
         this.data = data;
         this.#dbHook = dbHook;
         this.#lock = lock;
         this.#lock.acquire();
         this.getData = getData;
         this.status = TransactionStatus.InProgress as BigInt;
-        if (false) {};  // if invalid input data, throw new error
+        if (false) {};  // TODO: if invalid input data, throw new error
     }
 
     async commit(): Promise<void> {
@@ -74,5 +81,6 @@ export class Transaction {
             logger.warn(err, "Unintended use of transactions. Are you sure this isn't a mistake?");
         }
         this.status = TransactionStatus.Canceled as BigInt;
+        this.#lock.release();
     }
 }

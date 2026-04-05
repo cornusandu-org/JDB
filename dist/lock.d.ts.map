@@ -1,0 +1,1 @@
+{"version":3,"file":"lock.d.ts","sourceRoot":"","sources":["../src/jdb/lock.ts"],"names":[],"mappings":"AAAA,qBAAa,SAAS;IAClB,OAAO,CAAC,MAAM,CAAkB;IAChC,OAAO,CAAC,OAAO,CAAyB;IAExC,OAAO,IAAI,OAAO,CAAC,IAAI,CAAC;IAYxB,OAAO,IAAI,IAAI;CAUlB"}

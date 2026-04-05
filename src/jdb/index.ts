@@ -106,7 +106,7 @@ export class DatabaseManager {
         return false;
     }
 
-    async mktable(name: string) {  // TODO: Add `fields` parameter
+    async mktable(name: string, fields?: Array<string>) {
         await this.access_lock.acquire();
         this._promise_queue.push(new Promise((resolve: ResolveFn<[boolean, Error | null]>, ..._) => {
             const bus = new EventEmitter();
@@ -133,6 +133,8 @@ export class DatabaseManager {
                             entries: {}
                         }
                     })),
+                    fields: fields || new Array<string>(),
+                    strictfields: fields !== undefined,
                     records: new Map()
                 });
                 logger.info(`Added new table: ${name}`);

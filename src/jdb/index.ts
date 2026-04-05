@@ -118,10 +118,11 @@ export class DatabaseManager {
             try {
                 for (const t of this.#data.tables) {
                     if ((t as Record<string, any>).name === name) {
-                        // TODO: Optimize
-                        this.errors.push(new JDB_DB_MKTABLE_EXISTS(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name)));
-                        logger.error(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name));
-                        resolve([true, new JDB_DB_MKTABLE_EXISTS(getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name))]);
+                        const msg = getLog(codes.JDB_DB_MKTABLE_EXISTS).replace("%table%", name);
+                        const err = new JDB_DB_MKTABLE_EXISTS(msg);
+                        this.errors.push(err);
+                        logger.error(err);
+                        resolve([true, err]);
                         return;
                     }
                 }
@@ -141,10 +142,13 @@ export class DatabaseManager {
                 this.#locks.set(name, new AsyncLock());
                 resolve([false, null]);
             } catch (err) {
-                // TODO: Optimize
-                this.errors.push(new JDB_DB_MKTABLE_F1(getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name)));
-                logger.error(err, getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name));
-                resolve([true, new JDB_DB_MKTABLE_F1(getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name))]);
+                const msg = getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name);
+                const newerr = new JDB_DB_MKTABLE_F1(getLog(codes.JDB_DB_MKTABLE_F1).replace("%table%", name));
+                newerr.cause = err;
+                this.errors.push(newerr);
+                logger.error(err, msg);
+                logger.error(newerr);
+                resolve([true, newerr]);
             }
             bus.emit("done");
             this.access_lock.release();

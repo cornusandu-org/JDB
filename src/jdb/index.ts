@@ -176,12 +176,11 @@ export class DatabaseManager {
     }
 
     async #sync(): Promise<[boolean, Error | null]> {
-        // TODO: Use async functions here
         logger.info(`Saving db ${this.path} to disk`);
         await this.access_lock.acquire();
         try {
             const data = encode(this.#data);
-            fs.writeFileSync(this.path, data);
+            await fs.promises.writeFile(this.path, data);
         } catch (e) {
             const msg = getLog(codes.JDB_DB_INTERNAL_SYNCTODISK_UNKNOWNFAILURE0).replace("%db%", this.name);
             logger.error(e, msg);

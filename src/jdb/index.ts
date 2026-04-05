@@ -2,11 +2,12 @@ import logger from './logger.js';
 import fs, { readFileSync } from "fs";
 import path from "path";
 import { getLog, codes } from './getlog.js';
-import { JDB_DB_INTERNAL_MKTRANSACTION_MISSINGDATA, JDB_DB_INVALIDCONTROLFLOW, JDB_DB_MKTABLE_EXISTS, JDB_DB_MKTABLE_F1, JDB_DB_MKTRANSACTION_NOENTRY, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
+import { JDB_DB_INTERNAL_MKTRANSACTION_MISSINGDATA, JDB_DB_INTERNAL_SYNCTODISK_UNKNOWNFAILURE0, JDB_DB_INVALIDCONTROLFLOW, JDB_DB_MKTABLE_EXISTS, JDB_DB_MKTABLE_F1, JDB_DB_MKTRANSACTION_NOENTRY, JDB_DBINIT_INVPATH, JDBError } from './exceptions.js';
 import { AsyncLock } from './lock.js';
 import { encode, decode } from "@msgpack/msgpack";
 import { EventEmitter } from "events";
 import { Transaction } from './transaction.js';
+import { get } from 'http';
 
 let dbm_constructed: boolean = false;
 
@@ -24,6 +25,7 @@ export class DatabaseManager {
     access_lock: AsyncLock;
     #data: DBDataType;
     #locks: Map<string, AsyncLock>;
+    name: string;
     
     constructor(dbname: string) {
         this._promise_queue = [];
@@ -31,6 +33,7 @@ export class DatabaseManager {
         this.access_lock = new AsyncLock();
         this.#data = {tables:[]};  // placeholder value until fully initialised
         this.#locks = new Map();
+        this.name = dbname;
 
         this._promise_queue.push(new Promise((resolve: (value: any) => void, reject: (reason?: any) => void) => {
             reject;
@@ -176,10 +179,18 @@ export class DatabaseManager {
         // TODO: Use async functions here
         logger.info(`Saving db ${this.path} to disk`);
         await this.access_lock.acquire();
-        const data = encode(this.#data);
-        fs.writeFileSync(this.path, data);
+        try {
+            const data = encode(this.#data);
+            fs.writeFileSync(this.path, data);
+        } catch (e) {
+            const msg = getLog(codes.JDB_DB_INTERNAL_SYNCTODISK_UNKNOWNFAILURE0).replace("%db%", this.name);
+            logger.error(e, msg);
+            const err = new JDB_DB_INTERNAL_SYNCTODISK_UNKNOWNFAILURE0(msg);
+            err.cause = e;
+            throw err;
+        }
         this.access_lock.release();
-        return [false, null];  // TODO: Add error handling
+        return [false, null];
     }
 
     async flushToDisk() {

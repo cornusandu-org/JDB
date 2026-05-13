@@ -1,4 +1,4 @@
 type IndexType = {
     type: string,
-    entries: Record<number, Hash256Type> | Map<any, Hash256Type>
+    entries: Record<number, UUIDv7> | Map<any, UUIDv7>
 }

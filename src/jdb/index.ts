@@ -199,10 +199,6 @@ export class DatabaseManager {
     }
 
     async flushToDisk() {
-        this._promise_queue.push(this.#sync());
-    }
-
-    async flushToDiskNow(): Promise<[boolean, Error | null]> {
         return await this.#sync();
     }
 }

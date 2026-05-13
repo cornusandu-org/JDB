@@ -10,8 +10,8 @@ if (!await db.table_exists("test")) {
     if ((v = await db)[0]) throw v[1];
 }
 
-const tx = await db.transaction("test");
+const tx = await db.transaction("asd");
 tx.commit();
 tx.commit();
 
-await db.flushToDiskNow();
+await db.flushToDisk();

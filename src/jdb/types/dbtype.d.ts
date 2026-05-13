@@ -4,6 +4,6 @@ type DBDataType = {
         index: Map<string, IndexType>,
         fields: Array<string>,
         strictfields: boolean,
-        records: Map<Hash256Type, Map<string, unknown>>
+        records: Map<UUIDv7, Map<string, unknown>>
     }>
 };
